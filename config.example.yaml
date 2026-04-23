@@ -1,0 +1,12 @@
+products:
+  - url: "https://www.amazon.com/STIGA-Evolution-Performance-Level-Approved-Tournament/dp/B00EFY9F1C/ref=sr_1_1_sspa?crid=L2F2CQTM0AZG&dib=eyJ2IjoiMSJ9.OMYXmPfwBFojqO-ipER-ZK7TqHR48UTo1IfCo6l7J-76bjTQ2iSdnQxEp4_ILK57qcrPRcjcdKwxtOZkyS9-aks0AxlFsFj4h058o_FskTWcPozrjOi9UiZcw3CX6qw1kWa1SlyLt13prE4YPB98ZW_BK-uQjJVpdUlIloQUdFRBIDbJ3bXPncInr98gk7Sudt8DUDlxIvScGlAyox7TVc0gr47BmYP5epueDdjNm4dqm_Jv1qS9U2r3kmKccOGAMXjhWu3dT1wzoK3N3FO1eTgIXIbTqfhQo8193CofbaY.KlLTN5aPSTmJXUI3QR_RzkAnIUt7lhPUaxsO9F4oHVk&dib_tag=se&keywords=stiga+ping+pong+paddle&qid=1776954219&sprefix=stiga+ping+pong+pad%2Caps%2C272&sr=8-1-spons&sp_csd=d2lkZ2V0TmFtZT1zcF9hdGY&psc=1"
+    name: "STIGA Ping Pong Paddles"
+  - url: "https://www.amazon.com/Nittaku-3-stars-Premium-Table-Tennis/dp/B012WAQVYE/ref=sr_1_1?crid=2OGAI14NTN5H5&dib=eyJ2IjoiMSJ9.XzFGKT7yELbxEhB84sN8OQ7OsbPZYUjXBWUQoCmzJBUDXp2zfSq9cq8DErsXiYgpeE55oMTwY7lzPeChVdpJO1wnF56cM0VTVsyE6p0uSPl2V2WOdafcg43tQeUz4wAD5eXrT0XaYfed6c-5Q_3g5XoQXFofWKqkks54ngl65q2WxEUkuaiLopNRCiACvMI-rchrkjui3Ld4i2Iyu7a0011B4QluAOsxvrPbV3iGmGOm9gUkJ52P8_HrRP1MHfPteJhdHcQWf_wRAk7SqtN3Oug_nJipgVphngBjRawGojo.ugytQHoACpLjiUneL2T5Nq84ZN3aR0xvWD9x1RFUNfI&dib_tag=se&keywords=nittaku+ping+pong+balls&qid=1776954274&sprefix=nittaku+ping+pogn+ball%2Caps%2C178&sr=8-1"
+    name: "NITTAKU 3-Star Premium 40+ Table Tennis Balls"
+  - url: "https://www.amazon.com/Butterfly-Mens-Lezoline-Reiss-Shoes/dp/B0BG19DBTR/ref=sr_1_1_sspa?crid=3FJK2K7F29SVE&dib=eyJ2IjoiMSJ9.5-cROmPUBN-7SZtmm6E0CXfaYbZUaUxsc9t_JBr24abJetarYbO_-VhaTEABcLUwebm6U7uqkzecIBtg-lyYDUJMbggzvGgKPuEX9itlLZ-k8Sm83CEwO5yYYbVbnjqdAHT-txZUwe66n64PQxaZixg8u2mlmGDnQEi1Anue7Ngmokkf30rnBasoklQaDcN3gwjYyTGNlHjPX_KdI-zmZPUudzDZSqOjKNq6evVLr1Zyu8J4PYdo28olO7ismTXGGNJ78kYG9ErhT8Vzpa24gUuu_c6MCKG59U2RsUg9aEo._kr1BKz5EsTrXSOu0bt7_USWmqSAWhKnieCjfslTly4&dib_tag=se&keywords=butterfly+shoes&qid=1776954379&sprefix=butterfly+sho%2Caps%2C259&sr=8-1-spons&sp_csd=d2lkZ2V0TmFtZT1zcF9hdGY&psc=1"
+    name: "Butterfly Mens Lezoline Reiss Shoes"
+
+check_interval_minutes: 1
+drop_threshold_pct: 5.0
+notification_channel: "console"
+db_path: "price_monitor.db"
