@@ -112,6 +112,37 @@ python -m price_monitor
 
 The scheduler starts, prices are checked on the configured interval, and the dashboard is available at `http://localhost:8000`. Logs are written to `logs/price_monitor.log`.
 
+## Triggering a test price drop
+
+Real price drops can take hours or days to occur. To verify the full notification pipeline immediately, seed a fake high price directly into the database for one of your products. On the next scheduled tick, the scraper will fetch the real (lower) price, detect the drop, and fire all configured notifications.
+
+**1. Lower your threshold so any price difference triggers an alert** (optional but recommended for testing):
+
+In `config.yaml`, set:
+```yaml
+drop_threshold_pct: 0.01
+check_interval_minutes: 1
+```
+
+**2. Seed a fake high price for product 1** (adjust `product_id` and `checked_at` as needed — set `checked_at` to a minute or two in the past so it is treated as the most recent prior price):
+
+```bash
+sqlite3 price_monitor.db "INSERT INTO price_checks (product_id, checked_at, status, price, currency, attempts) VALUES (1, '2026-04-23T16:06:00+00:00', 'ok', 9999.99, 'USD', 1);"
+```
+
+**3.** Wait for the next tick (up to `check_interval_minutes`). When a successful scrape is logged you will see:
+
+- A bold green **PRICE DROP ALERT** banner in the terminal
+- A persistent desktop notification with a sound (if `notification_channels` includes `desktop`)
+- A new entry in the **Notifications** table on the dashboard at `http://localhost:8000`
+- A visible drop on the price history chart
+
+**4. Reset after testing** — restore `drop_threshold_pct` and `check_interval_minutes` to your preferred values in `config.yaml`.
+
+## Privacy
+
+**Personal data.** The application collects, stores, and processes no personal data. Inputs are product URLs and prices; outputs are local notifications and a local web dashboard. No user accounts, no analytics, no third-party data sharing. The SQLite database contains only product metadata (URL, name) and price history.
+
 ## Running tests
 
 ```bash
