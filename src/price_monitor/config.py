@@ -18,8 +18,15 @@ class AppConfig(BaseModel):
     products: list[ProductConfig]
     check_interval_minutes: int = 60
     drop_threshold_pct: float = 5.0
-    notification_channel: str = "console"
+    notification_channels: list[str] = ["console"]
     db_path: str = "price_monitor.db"
+
+    @field_validator("notification_channels", mode="before")
+    @classmethod
+    def coerce_channel_to_list(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            return [v]
+        return v  # type: ignore[return-value]
 
     @field_validator("products")
     @classmethod

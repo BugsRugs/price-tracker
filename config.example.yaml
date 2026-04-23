@@ -8,5 +8,6 @@ products:
 
 check_interval_minutes: 1
 drop_threshold_pct: 5.0
-notification_channel: "console"
+notification_channels:
+  - desktop
 db_path: "price_monitor.db"

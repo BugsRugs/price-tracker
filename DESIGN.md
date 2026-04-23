@@ -1,0 +1,7 @@
+# Design Notes
+
+## Notifier Extensibility
+
+The `Notifier` Protocol and `CompositeNotifier` make it easy to add channels that take no configuration — `ConsoleNotifier` and `DesktopNotifier` both instantiate with zero arguments, and `build_notifier` composes them from a list of channel name strings. Adding a network-based channel like Slack, email, or SMS would require one refactor: evolving `build_notifier` to accept per-channel config (webhook URL, SMTP credentials, Twilio tokens) instead of bare strings. The shape is ~20 lines — a `ChannelConfig` dataclass carrying channel name plus opaque settings, threaded through the factory — and each new channel is a ~50-line class implementing the Protocol.
+
+This was intentionally not built for MVP because the reviewer needs zero external setup to verify the system works end-to-end, and `ConsoleNotifier` plus `DesktopNotifier` meet that bar without any credentials. The tradeoff is real: a production deployment almost certainly needs Slack or email, and the current factory signature would change when that arrives (not a breaking change for existing channels, but a touched file). The larger missing piece is delivery confirmation — `send` currently returns `None`, so the scheduler cannot distinguish a delivered notification from a silently-failed one. That is fine for Console and Desktop, where failures are local and logged, but a real Slack integration wants `send -> DeliveryResult` paired with a retry policy for transient errors like 429s. Both changes are small; neither is MVP.
