@@ -1,44 +1,77 @@
 # price-tracker
 
-Amazon Price Drop Monitor — watches a list of Amazon product URLs and notifies you when prices drop past a configured threshold.
+Amazon Price Drop Monitor — watches a list of Amazon product URLs and notifies you when prices drop past a configured threshold. Logs are written to `logs/price_monitor.log` and a live dashboard is served at `http://localhost:8000`.
 
-## Getting started
+## Requirements
+
+- Python 3.11 or later
+- Git
+
+Verify your Python version before starting:
+
+```bash
+python3 --version
+```
+
+## Setup
 
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/BugsRugs/price-tracker.git
 cd price-tracker
 ```
 
-### 2. Create and activate a virtual environment, then install dependencies
+### 2. Create and activate a virtual environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
 ```
 
-> **Note (Debian/Ubuntu):** If `python3 -m venv` fails with an `ensurepip` error, install the system package first:
+> **Debian/Ubuntu only:** If the above fails with an `ensurepip is not available` error, install the system package first, then re-run the two commands above:
 > ```bash
 > sudo apt-get update && sudo apt-get install python3.12-venv
 > ```
-> Then re-run the `venv` commands above.
 
-### 3. Set up `config.yaml` (one-time)
+### 3. Install dependencies
+
+```bash
+pip install -e ".[dev]"
+```
+
+This installs all runtime dependencies (`httpx`, `selectolax`, `apscheduler`, `fastapi`, `uvicorn`, `pydantic`, `pyyaml`, `plyer`, etc.) and dev dependencies (`pytest`).
+
+### 4. Create your config file (one-time)
 
 ```bash
 cp config.example.yaml config.yaml
 ```
 
-Open `config.yaml` and add the Amazon product URLs you want to track along with any other settings (check interval, drop threshold, notification channel, etc.). See `config.example.yaml` for reference.
+Open `config.yaml` and fill in the Amazon product URLs you want to track. The file is gitignored so your personal URLs and settings will never be committed. Key fields:
 
-### 4. Run the monitor
+| Field | Description | Default |
+|---|---|---|
+| `products` | List of `url` + `name` pairs to monitor | *(required)* |
+| `check_interval_minutes` | How often to check prices | `60` |
+| `drop_threshold_pct` | Minimum % drop to trigger a notification | `5.0` |
+| `notification_channels` | `console`, `desktop`, or both | `["console"]` |
+| `db_path` | Path to the SQLite database file | `price_monitor.db` |
+
+### 5. Run the monitor
+
+Run this from the **repo root** (the directory containing `config.yaml`):
 
 ```bash
-cd /home/bronson-wong/price-tracker
 source .venv/bin/activate
 python -m price_monitor
 ```
 
-The monitor will check prices on the interval defined in `config.yaml` and print a notification to the console whenever a price drops by at least the configured threshold.
+The scheduler starts, prices are checked on the configured interval, and the dashboard is available at `http://localhost:8000`. Logs are written to `logs/price_monitor.log`.
+
+## Running tests
+
+```bash
+source .venv/bin/activate
+pytest
+```
