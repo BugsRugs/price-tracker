@@ -57,6 +57,11 @@ I picked option 1 because the reviewer shouldn't have to sign up for a service j
 If I were actually deploying this, I'd use option 2 (the third-party API handles the legal side and resells the data) or option 3 if the product qualified. My scraper is isolated in one file, so swapping it for a compliant source is a single-file change. The rest of the system, storage, detection, notification doesn't care where the price comes from.
  
 **Principle:** when you have to make a choice that isn't production-ready, name it out loud and design the system so the compliant version is a drop-in replacement.
+
+## Final Touches
+In the last 30 minutes I attempted to achieve one of the stretch goals but found after building a plan for the REST export and implementing it I ran into regression errors. The REST export would work properly when curl testing but the dashboard showing 30 day price history would fail and show 'loading' the entire time. After two failed attempts I made the decision to not pursue this further and focus more on making the scraping more robust. 
+
+I added three techniques to scrape more successfully, adding random time after each scrape to the next time we scrape, changing out headers such as mozilla, chrome, etc, and changing the order of products I scraped. This resulted in far more succesfuly price grabs and making the system overall more accurate and robust since obtaining the price itself if the backbone of the project. 
  
 ## What I deliberately didn't build
  
