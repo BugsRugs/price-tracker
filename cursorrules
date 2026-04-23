@@ -1,0 +1,157 @@
+# Project: Amazon Price Drop Monitor (ECFX take-home)
+
+## Context
+- Take-home evaluation scoped to 4 hours of AI-assisted coding work.
+- Evaluated on: functionality, design clarity, failure handling, data model,
+  separation of concerns, AI collaboration, readability.
+- MVP FIRST. Core requirements only. Stretch goals are not on the table.
+- Owner prefers direct, structured output over commentary or hedging.
+
+## MVP discipline — the single most important rule
+- If a feature is not in the "Core requirements" list in PROJECT_CONTEXT.md,
+  do not build it. Do not suggest building it unprompted.
+- If you finish a stage early, STOP and wait for instruction. Do not
+  proactively add features to fill time.
+- When in doubt between "the clean version" and "the simple version,"
+  pick simple. We can refactor; we cannot un-spend time.
+- No premature abstraction. No "framework for future notification channels."
+  Two concrete notifiers behind a Protocol is the ceiling.
+
+## Tech stack (locked — do not substitute)
+- Python 3.11+
+- httpx for HTTP (NOT requests)
+- selectolax for HTML parsing (NOT BeautifulSoup)
+- sqlite3 from stdlib (NOT SQLAlchemy, NOT an ORM)
+- APScheduler (BackgroundScheduler) for scheduling
+- FastAPI + Jinja2 for the dashboard
+- Chart.js from CDN for charts (NOT a React charting lib)
+- pytest for testing
+- pyproject.toml for dependencies (NOT requirements.txt)
+- stdlib logging (structlog is out of scope for MVP)
+
+## Logging vs persisted state
+Two observability channels, split by consumer — not by severity.
+
+- **DB tables = durable outcomes the APP needs to read later.**
+  Every scrape attempt is a row in `price_checks` (success or failure, with
+  a `status` column). Every notification is a row in `notifications` (with
+  `delivered` and `error`). These are queried by the dashboard and by the
+  detector. They are the source of truth for "what happened."
+
+- **Logs = transient behavior a HUMAN needs to read now.**
+  Startup sequence, config load, schema migration, per-retry attempts,
+  request timings, scheduler ticks, uncaught exceptions, dashboard
+  request errors. These go to stdout via stdlib `logging`, formatted as
+  structured lines with `extra={...}` fields.
+
+- **The rule:** if another part of the app needs to read this data later,
+  it's a table row. If it's only for a human with `grep`, it's a log line.
+  A scrape failure appears in BOTH places — that's not duplication, it's
+  two different consumers needing two different views.
+
+- **NEVER create an `errors`, `events`, or `logs` table in the DB.**
+  It duplicates `price_checks.status` for per-tick errors and is a poor
+  fit for outside-tick errors like config failures (no product_id to FK).
+
+- **Log levels:**
+  - DEBUG — per-retry attempts, selector matches, backoff delays
+  - INFO — tick started/completed, notification fired, startup events
+  - WARNING — classified scrape failure, notification delivery failure
+  - ERROR — unhandled exception in tick loop, schema migration failure
+  - CRITICAL — cannot start (invalid config, unwritable DB)
+
+- **MVP scope:** logs go to stdout only. No file handler, no rotation,
+  no log aggregation. A `RotatingFileHandler` is a 4-line addition but
+  is not MVP — note in DESIGN.md as a stretch, do not build.
+
+- **One `configure_logging()` call in `main.py` at startup.** Every other
+  module uses `log = logging.getLogger(__name__)` and calls log methods.
+  Never reconfigure logging outside `main.py`.
+
+## Conventions
+- All public functions have type hints. `from __future__ import annotations`
+  at the top of every module.
+- All timestamps are UTC ISO 8601 strings, produced by a single helper:
+  `datetime.now(timezone.utc).isoformat()`. Never `datetime.now()` without tz.
+- Value objects are `@dataclass(frozen=True)` where practical.
+- Scraper returns a `ScrapeResult` dataclass — NEVER raises to callers.
+- Storage methods take/return dataclasses, not raw dicts or tuples.
+- Logging via stdlib `logging.getLogger(__name__)`. Use keyword `extra={...}`
+  for structured fields. No `print()` except inside ConsoleNotifier.
+
+## File layout (do not deviate)
+```
+price-monitor/
+├── pyproject.toml
+├── .gitignore
+├── config.example.yaml
+├── README.md
+├── DESIGN.md
+├── AI-NOTES.md
+├── src/price_monitor/
+│   ├── __init__.py
+│   ├── config.py          # Pydantic config schema + loader
+│   ├── models.py          # ScrapeResult, ScrapeStatus, Product dataclasses
+│   ├── storage.py         # SQLite Storage class
+│   ├── scraper.py         # fetch_price(url) -> ScrapeResult
+│   ├── detector.py        # pure functions — is_drop, drop_pct
+│   ├── notifier.py        # Notifier Protocol + ConsoleNotifier + ToastNotifier
+│   ├── scheduler.py       # APScheduler wiring + tick orchestration
+│   ├── dashboard.py       # FastAPI app
+│   ├── templates/
+│   │   └── index.html     # Jinja template with Chart.js from CDN
+│   └── main.py            # entrypoint: load config, start scheduler + dashboard
+└── tests/
+    ├── conftest.py        # tmp_path fixture for Storage
+    ├── test_detector.py   # pure logic — 4+ tests
+    ├── test_storage.py    # roundtrip, last_ok_price
+    ├── test_scraper.py    # HTML fixture, no network
+    └── test_notifier.py   # mock side effects
+```
+
+## Hard rules — NEVER do these
+- Never use `requests`; httpx was chosen deliberately.
+- Never use BeautifulSoup; selectolax was chosen deliberately.
+- Never use `datetime.now()` without `timezone.utc`.
+- Never raise exceptions from `scraper.fetch_price` — return ScrapeResult.
+- Never commit `config.yaml` (only `config.example.yaml`).
+- Never commit `*.db`, `.env`, or `__pycache__/`.
+- Never use `print()` for diagnostics — use the logger.
+- Never add a dependency without asking first.
+- Never build Slack, email, SMS, or webhook notifiers for the MVP.
+- Never add authentication, users, or multi-tenancy.
+- Never write tests that hit the real Amazon network.
+
+## Notifications — MVP scope
+Two concrete notifiers, both work with zero external config:
+1. `ConsoleNotifier` — logs structured warning + prints human-readable banner
+   to stdout. This is the default.
+2. `ToastNotifier` — OS-native desktop notification via the `plyer` library
+   (cross-platform: macOS, Linux, Windows). Opt-in via config.
+
+Both implement a `Notifier` Protocol with one method:
+    `def send(self, event: PriceDropEvent) -> None: ...`
+NOTHING ELSE. No Slack. No email. No webhooks. No "pluggable framework."
+
+## Testing philosophy
+- One meaningful test per layer, as the brief requests. Do not chase coverage.
+- Detector tests are pure, fast, and cover edge cases (threshold boundary,
+  zero prev_price, negative drop is not a drop). Aim for 5+ here.
+- Storage tests use `tmp_path` per test; never a shared DB file.
+- Scraper test uses a saved HTML fixture in `tests/fixtures/`; never network.
+- Notifier test asserts on logger calls or mocked side effects.
+
+## When you're about to write code, check these first
+1. Does the function have a type-hinted signature?
+2. If it's the scraper, does it return ScrapeResult instead of raising?
+3. If it touches time, is it UTC ISO 8601?
+4. If it's storage, does it use a dataclass, not a dict?
+5. Is this on the MVP list, or am I gold-plating?
+
+If the answer to 5 is "gold-plating," STOP and ask.
+
+## When you finish a stage
+1. Run `pytest` and confirm all tests pass.
+2. Run the app end-to-end with the example config if the stage is runnable.
+3. Stage the changes with `git add` but do NOT commit — the owner reviews first.
+4. Summarize what changed in 3-5 bullets. Do not editorialize.
