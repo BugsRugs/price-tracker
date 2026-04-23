@@ -1,0 +1,7 @@
+# AI Notes
+
+## Scraper Design Trade-offs
+
+The current scraper (`src/price_monitor/scraper.py`) uses a CSS selector cascade targeting Amazon's `.a-offscreen` accessibility spans, which works for most standard product pages because Amazon renders prices server-side for SEO. However, it will fail or return incorrect data in several real-world cases: multi-variant products may have a zero or missing price until a variant is selected via JavaScript; prices embedded only in `<script type="a-state">` JSON blobs are invisible to the static HTML parser (`selectolax`); and the generic fallback selector (`.a-price .a-offscreen`) can match a struck-through "List Price" before the actual sale price if the DOM ordering differs from what we assume. We are accepting these limitations for now because time is a constraint and the approach covers the majority of straightforward product pages.
+
+In the future, more robust scraping methods should be considered: **browser automation** (e.g., Playwright/Selenium) to execute JavaScript and resolve variant-dependent prices; **structured data extraction** via Amazon's embedded JSON-LD (`<script type="application/ld+json">`) or `a-state` blobs, which are more stable than DOM layout; and **proxy rotation with realistic session headers** to reduce bot detection false positives and avoid CAPTCHA pages degrading data quality. Each of these adds infrastructure complexity and latency, which is why they are deferred.

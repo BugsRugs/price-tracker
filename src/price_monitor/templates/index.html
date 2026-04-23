@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Price Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      color: #f8fafc;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .product-name {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: #f1f5f9;
+    }
+
+    .product-name a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+
+    .product-name a:hover { text-decoration: underline; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 220px;
+    }
+
+    .no-data {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 220px;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      color: #64748b;
+      font-weight: 600;
+      border-bottom: 1px solid #334155;
+    }
+
+    tbody tr:hover { background: #1e293b; }
+
+    tbody td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid #1e293b;
+      color: #cbd5e1;
+    }
+
+    .badge-drop {
+      display: inline-block;
+      background: #16a34a22;
+      color: #4ade80;
+      border: 1px solid #16a34a55;
+      border-radius: 9999px;
+      padding: 0.15rem 0.6rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .empty-state {
+      color: #475569;
+      font-size: 0.875rem;
+      padding: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Price Monitor</h1>
+
+  <h2>Price History (last 30 days)</h2>
+  <div class="grid">
+    {% for product in products %}
+    <div class="card">
+      <p class="product-name">
+        <a href="{{ product.url }}" target="_blank" rel="noopener">{{ product.name }}</a>
+      </p>
+      <div class="chart-wrapper" id="wrap-{{ product.id }}">
+        <div class="no-data" id="nodata-{{ product.id }}">Loading…</div>
+        <canvas id="chart-{{ product.id }}" style="display:none;"></canvas>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2>Recent Price Drops</h2>
+  <div class="card">
+    {% if recent_drops %}
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Was</th>
+          <th>Now</th>
+          <th>Drop</th>
+          <th>Fired at</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for drop in recent_drops %}
+        <tr>
+          <td>
+            <a href="{{ drop.product_url }}" target="_blank" rel="noopener" style="color:#60a5fa;text-decoration:none;">
+              {{ drop.product_name }}
+            </a>
+          </td>
+          <td>${{ "%.2f"|format(drop.prev_price) }}</td>
+          <td>${{ "%.2f"|format(drop.new_price) }}</td>
+          <td><span class="badge-drop">−{{ "%.1f"|format(drop.drop_pct) }}%</span></td>
+          <td>{{ drop.fired_at[:19].replace("T", " ") }} UTC</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No price drops recorded yet.</p>
+    {% endif %}
+  </div>
+
+  <script>
+    const PRODUCTS = [
+      {% for product in products %}
+      { id: {{ product.id }}, name: {{ product.name | tojson }} }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    const CHART_COLOR = "rgba(96, 165, 250, 1)";
+    const CHART_BG    = "rgba(96, 165, 250, 0.12)";
+
+    async function loadChart(product) {
+      const nodata = document.getElementById(`nodata-${product.id}`);
+      const canvas = document.getElementById(`chart-${product.id}`);
+
+      let rows;
+      try {
+        const resp = await fetch(`/api/history/${product.id}?days=30`);
+        rows = await resp.json();
+      } catch (err) {
+        nodata.textContent = "Failed to load data.";
+        return;
+      }
+
+      const okRows = rows.filter(r => r.status === "ok" && r.price != null);
+      if (okRows.length === 0) {
+        nodata.textContent = "No price data yet.";
+        return;
+      }
+
+      nodata.style.display = "none";
+      canvas.style.display = "block";
+
+      const labels = okRows.map(r => {
+        const d = new Date(r.checked_at);
+        return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      });
+      const prices = okRows.map(r => r.price);
+
+      new Chart(canvas.getContext("2d"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: product.name,
+            data: prices,
+            borderColor: CHART_COLOR,
+            backgroundColor: CHART_BG,
+            borderWidth: 2,
+            pointRadius: prices.length > 60 ? 0 : 3,
+            fill: true,
+            tension: 0.3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => `$${ctx.parsed.y.toFixed(2)}`,
+              },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: "#64748b", maxTicksLimit: 6, maxRotation: 0 },
+              grid: { color: "#1e293b" },
+            },
+            y: {
+              ticks: {
+                color: "#64748b",
+                callback: v => `$${v.toFixed(2)}`,
+              },
+              grid: { color: "#334155" },
+            },
+          },
+        },
+      });
+    }
+
+    PRODUCTS.forEach(loadChart);
+  </script>
+</body>
+</html>
