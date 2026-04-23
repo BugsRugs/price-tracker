@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import random
+import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -67,15 +69,20 @@ def check_product(
 
 def run_all_checks(storage: Storage, config: AppConfig, notifier: Notifier) -> None:
     products = storage.list_products()
+    random.shuffle(products)
     ok_count = 0
     fail_count = 0
-    for product in products:
+    for i, product in enumerate(products):
         try:
             check_product(product, storage, notifier, config.drop_threshold_pct)
             ok_count += 1
         except Exception:
             fail_count += 1
             log.exception("tick_failed_unexpectedly", extra={"product_id": product.id})
+        if i < len(products) - 1:
+            delay = random.uniform(*config.inter_product_delay)
+            log.debug("inter_product_delay", extra={"delay": round(delay, 2)})
+            time.sleep(delay)
     log.info("tick_complete", extra={"ok": ok_count, "failed": fail_count})
 
 
@@ -85,7 +92,7 @@ def build_scheduler(
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         run_all_checks,
-        trigger=IntervalTrigger(minutes=config.check_interval_minutes),
+        trigger=IntervalTrigger(minutes=config.check_interval_minutes, jitter=config.jitter_seconds),
         args=[storage, config, notifier],
         max_instances=1,
         misfire_grace_time=60,

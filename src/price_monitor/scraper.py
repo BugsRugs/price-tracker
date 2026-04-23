@@ -5,6 +5,7 @@ import random
 import re
 import time
 from datetime import datetime, timezone
+from urllib.parse import urlparse, urlunparse
 
 from curl_cffi import requests as cffi_requests
 from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
@@ -30,12 +31,30 @@ BOT_SIGNATURES = [
     "api-services-support@amazon",
 ]
 
-_HEADERS = {
-    "User-Agent": (
+_USER_AGENTS = [
+    (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/124.0.0.0 Safari/537.36"
     ),
+    (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/123.0.0.0 Safari/537.36"
+    ),
+    (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    (
+        "Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+]
+
+_HEADERS_BASE = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
@@ -50,6 +69,28 @@ _HEADERS = {
     "sec-ch-ua-mobile": "?0",
     "sec-ch-ua-platform": '"Windows"',
 }
+
+
+def _build_headers() -> dict[str, str]:
+    return {**_HEADERS_BASE, "User-Agent": random.choice(_USER_AGENTS)}
+
+
+_ASIN_RE = re.compile(r"/dp/([A-Z0-9]{10})")
+
+
+def _canonical_url(url: str) -> str:
+    """Strip tracking params and reduce to the clean /dp/ASIN form.
+
+    Removes referrer tokens (dib=, crid=, ref=, etc.) that signal the request
+    originated from a search-results page rather than direct navigation.
+    Falls back to stripping only the query string for non-ASIN URLs.
+    """
+    m = _ASIN_RE.search(url)
+    if m:
+        parsed = urlparse(url)
+        return urlunparse((parsed.scheme, parsed.netloc, f"/dp/{m.group(1)}", "", "", ""))
+    parsed = urlparse(url)
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
 
 _RETRYABLE = {ScrapeStatus.NETWORK_ERROR, ScrapeStatus.HTTP_ERROR}
 
@@ -85,9 +126,10 @@ def _extract_price_from_json(body: str) -> float | None:
 
 def fetch_price(url: str, product_id: int) -> ScrapeResult:
     checked_at = _now()
+    url = _canonical_url(url)
     try:
         with cffi_requests.Session(impersonate="chrome124") as session:
-            response = session.get(url, headers=_HEADERS, timeout=15)
+            response = session.get(url, headers=_build_headers(), timeout=15)
     except (CurlConnectionError, CurlTimeout) as exc:
         log.warning(
             "scrape_network_error",

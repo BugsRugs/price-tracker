@@ -76,10 +76,7 @@ def test_desktop_notifier_sends_persistent_notification_on_linux(monkeypatch) ->
     event = _make_event()
     monkeypatch.setattr("price_monitor.notifier.sys.platform", "linux")
 
-    with (
-        patch("price_monitor.notifier.subprocess.Popen") as mock_popen,
-        patch("price_monitor.notifier._play_sound"),
-    ):
+    with patch("price_monitor.notifier.subprocess.Popen") as mock_popen:
         DesktopNotifier().send(event)
 
     mock_popen.assert_called_once()
@@ -91,30 +88,14 @@ def test_desktop_notifier_sends_persistent_notification_on_linux(monkeypatch) ->
     assert any("75.00" in arg for arg in cmd)
 
 
-def test_desktop_notifier_plays_sound() -> None:
-    event = _make_event()
-    with (
-        patch("price_monitor.notifier.subprocess.Popen"),
-        patch("price_monitor.notifier._play_sound") as mock_sound,
-    ):
-        DesktopNotifier().send(event)
-
-    mock_sound.assert_called_once()
-
-
 def test_desktop_notifier_handles_notify_send_failure() -> None:
-    """A broken notify-send must not propagate — sound should still play."""
+    """A broken notify-send must not propagate."""
     event = _make_event()
-    with (
-        patch(
-            "price_monitor.notifier.subprocess.Popen",
-            side_effect=FileNotFoundError("notify-send not found"),
-        ),
-        patch("price_monitor.notifier._play_sound") as mock_sound,
+    with patch(
+        "price_monitor.notifier.subprocess.Popen",
+        side_effect=FileNotFoundError("notify-send not found"),
     ):
         DesktopNotifier().send(event)  # must not raise
-
-    mock_sound.assert_called_once()
 
 
 def test_desktop_notifier_plyer_fallback_on_non_linux(monkeypatch) -> None:
@@ -126,10 +107,7 @@ def test_desktop_notifier_plyer_fallback_on_non_linux(monkeypatch) -> None:
     mock_notify = MagicMock()
     mock_plyer.notification.notify = mock_notify
 
-    with (
-        patch.dict("sys.modules", {"plyer": mock_plyer}),
-        patch("price_monitor.notifier._play_sound"),
-    ):
+    with patch.dict("sys.modules", {"plyer": mock_plyer}):
         DesktopNotifier().send(event)
 
     mock_notify.assert_called_once()

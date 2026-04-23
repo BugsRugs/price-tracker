@@ -6,8 +6,10 @@ products:
   - url: "https://www.amazon.com/Butterfly-Mens-Lezoline-Reiss-Shoes/dp/B0BG19DBTR/ref=sr_1_1_sspa?crid=3FJK2K7F29SVE&dib=eyJ2IjoiMSJ9.5-cROmPUBN-7SZtmm6E0CXfaYbZUaUxsc9t_JBr24abJetarYbO_-VhaTEABcLUwebm6U7uqkzecIBtg-lyYDUJMbggzvGgKPuEX9itlLZ-k8Sm83CEwO5yYYbVbnjqdAHT-txZUwe66n64PQxaZixg8u2mlmGDnQEi1Anue7Ngmokkf30rnBasoklQaDcN3gwjYyTGNlHjPX_KdI-zmZPUudzDZSqOjKNq6evVLr1Zyu8J4PYdo28olO7ismTXGGNJ78kYG9ErhT8Vzpa24gUuu_c6MCKG59U2RsUg9aEo._kr1BKz5EsTrXSOu0bt7_USWmqSAWhKnieCjfslTly4&dib_tag=se&keywords=butterfly+shoes&qid=1776954379&sprefix=butterfly+sho%2Caps%2C259&sr=8-1-spons&sp_csd=d2lkZ2V0TmFtZT1zcF9hdGY&psc=1"
     name: "Butterfly Mens Lezoline Reiss Shoes"
 
-check_interval_minutes: 1
+check_interval_minutes: 1  # 1 is convenient for local testing; use 15-30 in production
 drop_threshold_pct: 5.0
 notification_channels:
   - desktop
 db_path: "price_monitor.db"
+jitter_seconds: 120         # adds up to 2 min of random spread to each interval
+inter_product_delay: [8, 20]  # seconds to wait between consecutive product checks

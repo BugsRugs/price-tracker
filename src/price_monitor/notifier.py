@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
-from pathlib import Path
 from typing import Protocol
 
 from price_monitor.models import PriceDropEvent
@@ -43,39 +42,6 @@ class ConsoleNotifier:
         )
 
 
-def _play_sound() -> None:
-    """Fire-and-forget system sound. Tries each candidate in order; never raises."""
-    if sys.platform == "linux":
-        candidates = [
-            ("paplay", "/usr/share/sounds/freedesktop/stereo/bell.oga"),
-            ("aplay", "/usr/share/sounds/freedesktop/stereo/bell.oga"),
-        ]
-        for cmd, path in candidates:
-            if not Path(path).exists():
-                continue
-            try:
-                subprocess.Popen(
-                    [cmd, path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                return
-            except Exception as exc:
-                log.warning("sound_candidate_failed", extra={"cmd": cmd, "error": str(exc)})
-    elif sys.platform == "darwin":
-        try:
-            subprocess.Popen(
-                ["afplay", "/System/Library/Sounds/Glass.aiff"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return
-        except Exception as exc:
-            log.warning("sound_failed", extra={"error": str(exc)})
-    # Fallback: terminal bell
-    print("\a", end="", flush=True)
-
-
 class DesktopNotifier:
     """Persistent OS notification + audio alert.
 
@@ -96,8 +62,6 @@ class DesktopNotifier:
             self._notify_send(event, title, message)
         else:
             self._plyer_notify(event, title, message)
-
-        _play_sound()
 
     def _notify_send(
         self, event: PriceDropEvent, title: str, message: str

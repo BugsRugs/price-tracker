@@ -20,6 +20,8 @@ class AppConfig(BaseModel):
     drop_threshold_pct: float = 5.0
     notification_channels: list[str] = ["console"]
     db_path: str = "price_monitor.db"
+    jitter_seconds: int = 120
+    inter_product_delay: list[float] = [8.0, 20.0]
 
     @field_validator("notification_channels", mode="before")
     @classmethod
@@ -47,6 +49,24 @@ class AppConfig(BaseModel):
     def positive_interval(cls, v: int) -> int:
         if v < 1:
             raise ValueError("check_interval_minutes must be >= 1")
+        return v
+
+    @field_validator("jitter_seconds")
+    @classmethod
+    def non_negative_jitter(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("jitter_seconds must be >= 0")
+        return v
+
+    @field_validator("inter_product_delay")
+    @classmethod
+    def valid_delay_range(cls, v: list[float]) -> list[float]:
+        if len(v) != 2:
+            raise ValueError("inter_product_delay must be a list of exactly two values [min, max]")
+        if v[0] < 0 or v[1] < 0:
+            raise ValueError("inter_product_delay values must be >= 0")
+        if v[0] > v[1]:
+            raise ValueError("inter_product_delay min must be <= max")
         return v
 
 
