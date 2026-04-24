@@ -2,6 +2,10 @@
 
 Amazon Price Drop Monitor — watches a list of Amazon product URLs and notifies you when prices drop past a configured threshold. Logs are written to `logs/price_monitor.log` and a live dashboard is served at `http://localhost:8000`.
 
+## Architecture
+
+![Price drop monitor system architecture](price_monitor_architecture.svg)
+
 ## Requirements
 
 - Python 3.11 or later
